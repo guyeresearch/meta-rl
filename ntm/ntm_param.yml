@@ -1,0 +1,1 @@
+batch_size: 36mem:    N: 20    M: 100shift_vec: [-1,0,1]ctrl:    input_size: 20    hidden_size: 100    output_size: 100    n: 2
