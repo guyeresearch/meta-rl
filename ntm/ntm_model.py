@@ -16,30 +16,42 @@ import torch.optim as optim
 import qn
 
 #%%
-x = torch.randn(3,2,4)
-y = torch.randn(3,2)
-y2 = y.unsqueeze(dim=-1)
-(x*y2)*size()
-x.transpose(1,2).transpose(0,1).size()
+# x = torch.randn(3,2,4)
+# y = torch.randn(3,2)
+# y2 = y.unsqueeze(dim=-1)
+# (x*y2).size()
+# x.transpose(1,2).transpose(0,1).size()
 
-cs = nn.CosineSimilarity(dim=2)
-x = torch.randn(3,2,4)
-y = torch.randn(3,1,4)
-cs(x,y)
+# cs = nn.CosineSimilarity(dim=2)
+# x = torch.randn(3,2,4)
+# y = torch.randn(3,1,4)
+# cs(x,y)
 
-x = torch.tensor([[1.,2],[3,4]])
-x/x.sum(dim=1).unsqueeze(dim=-1)
+# x = torch.tensor([[1.,2],[3,4]])
+# x/x.sum(dim=1).unsqueeze(dim=-1)
 
-class CL():
-    def __init__(self,a,b,c):
-        print(vars())
-        x = 6
-        print(vars())
-        # pass
+# class CL():
+#     def __init__(self,a,b,c):
+#         print(vars())
+#         x = 6
+#         print(vars())
+#         # pass
     
-    def __call__(self,x):
-        return 5
-cl = CL(1,2,3)
+#     def __call__(self,x):
+#         return 5
+# cl = CL(1,2,3)
+# x = torch.tensor([[[1.,2,3]]])
+# w = torch.tensor([[[1.,-1]]])
+# F.conv1d(x,w,dilation=2)
+
+# x = torch.empty((2,))
+# y = torch.tensor([[1,2.],[3,4.]],requires_grad=True)
+# x[0] = y[0,:].sum()*2
+# x[1] = y[1,:].sum()
+# z = x.sum()
+# z.backward()
+
+
 #%%
 class Memory():
     def __init__(self,N,M,batch_size):
@@ -83,11 +95,24 @@ class Shift():
         # shift_vec in the form of [-1, 0, 1] as an example, which
         # allows back and foward shift by 1 position or no shift
         self.vec = shift_vec
+        
+        
+    def correct_idx(self,i,N):
+        return i if i < N else i-N
     
     def __call__(self, s, wg):
         # shift wg using shift vec weighted by s
+        # s: batch * vec_size
+        # wg: batch * N
+        ws = torch.empty(wg.shape)
+        N = wg.shape[1]
         
-        pass
+        for i in range(N):
+            idx = [self.correct_idx(i+shift_val, N) for shift_val in self.vec]
+            # batch * vec_size
+            wg_slice = wg[:,idx]
+            ws[:,i] = (wg_slice*s).sum(dim=1)
+        return ws
 
 class Head():
     def __init__(self, mem, shift):
@@ -112,6 +137,7 @@ class Head():
         
     def address_cos(self, param):
         # mem: memory
+        # k: batch * M
         # cos: batch * N
         # beta: batch * 1, 
         # g: batch * 1, range (0,1)
@@ -130,7 +156,7 @@ class Head():
         s = F.softmax(s,dim=1)
         ws = self.shift(s,wg)
         
-        gamma = F.relu(gamma)+1
+        gamma = F.relu(gamma)+1 #force range (1, inf)
         w_sharp = ws.pow(gamma)
         w = w_sharp/w_sharp.sum(dim=1).unsqueeze(dim=-1)
         
@@ -143,7 +169,7 @@ class ReadHead(Head):
     def __init__(self,mem,shift):
         super(ReadHead,self).__init__(mem,shift)
     
-    def read(self,param):
+    def __call__(self,param):
         w = self.address(param)
         return self.mem.read(w)
 
@@ -151,7 +177,7 @@ class WriteHead(Head):
     def __init__(self,mem,shift):
         super(ReadHead,self).__init__(mem,shift)
     
-    def write(self,param,e,a):
+    def __call__(self,param,e,a):
         # e range [0,1]
         e = F.sigmoid(e)
         w = self.address_cos(param)
@@ -169,20 +195,21 @@ class FFController(nn.Module):
         for i in range(n):
             if i == 0:
                 self.layers[i] = nn.Linear(input_size,hidden_size)
-            elif i === layer_count - 1:
+            elif i == (self.n - 1):
                 self.layers[i] = nn.Linear(hidden_size,output_size)
             else:
                 self.layers[i] = nn.Linear(hidden_size,hidden_size)
         
     def forward(self,x):
-        for i, layer in enumerate(layers):
-            if i < self.n - 1
+        for i, layer in enumerate(self.layers):
+            if i < (self.n - 1):
                 x = F.leaky_relu(layer(x))
             else:
                 # !!!revist to see if need an activation
                 x = layer(x)
         return x
 
+Controllers = {'FFController':FFController}
 #%%
 class AttrDict(dict):
     """ Dictionary subclass whose entries can be accessed by attributes
@@ -215,12 +242,14 @@ class NTM_Head(nn.Module):
         self.M = p.mem.M
         self.batch_size = p.batch_size
         
+        # select controller
+        Controller = Controllers[p.ctrl.type]
         self.mem = Memory(self.N, self.M, self.batch_size)
-        self.ctrl = FFController(self.batch_size, p.ctrl.input_size,
+        self.ctrl = Controller(p.batch_size, p.ctrl.input_size,
                 p.ctrl.hidden_size, p.ctrl.n, p.ctrl.output_size)
         
         self.shift = Shift(p.shift_vec)
-        self.read = ReadHead(self.mem,self.shift)
+        self.read = ReadHead(self.mem, self.shift)
         self.write = WriteHead(self.mem, self.shift)
         
         # k + beta + g + s + gamma
@@ -238,7 +267,12 @@ class NTM_Head(nn.Module):
         # output: e + a, M + M
         self.ea_layer = nn.Linear(p.N+repr_size,self.M*2)
         #self.a_layer = nn.Linear(p.N+repr_size,M)
-
+    
+    def reset(self):
+        # reset for each batch
+        self.mem.reset()
+        self.read.reset()
+        self.write.reset()
     
     def _split(self,represent):
         rep = represent
@@ -251,22 +285,23 @@ class NTM_Head(nn.Module):
         
     
     def forward(self,x):
-        represent = self.ctrl(x)
+        ctrl_out = self.ctrl(x)
         
-        read_repr = self.read_layer(F.leaky_relu(represent))
+        read_repr = self.read_layer(F.leaky_relu(ctrl_out))
         read_param = self._split(read_repr)
         
-        write_repr = self.write_layer(F.leaky_relu(represent))
+        write_repr = self.write_layer(F.leaky_relu(ctrl_out))
         w_splits = self._split(write_repr)
         wk = w_splits[0]
         wcos = self.mem.cos(wk)
+        write_param = [wcos] + w_splits[1:]
         write_repr_tanh = F.tanh(write_repr) # match wcos range
         # wcos: batch*N, write_repr_tanh batch*repr_size
-        ea_input = concate ??? (wcos,write_repr_tanh) #TODO
+        ea_input = torch.cat((wcos,write_repr_tanh),dim=1) #TODO
         ea = self.ea_layer(ea_input)
         e = ea[:,:self.M]
-        a = ea[:,self.M:]
-        write_param = [wcos] + w_splits[1:]
+        a = ea[:,self.M:] # add tanh transformation for stored content
+                          # as in GRU ?? also add tanh for k??
         self.write(write_param,e,a)
         
         return self.read(read_param)
