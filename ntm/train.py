@@ -83,4 +83,4 @@ for index, inp, target in data:
         plt.savefig('figures/cost.png')
         plt.close()
     
-    
+torch.save(ntm.state_dict(),'ntm_ff_copy.pt')
