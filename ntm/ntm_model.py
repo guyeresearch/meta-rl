@@ -51,13 +51,20 @@ import qn
 # z = x.sum()
 # z.backward()
 
+# class A():
+#     def __init__(self,x):
+#         self.x = x
+
+# class B(A):
+#     def go(self):
+#         print(self.x)
 
 #%%
 class Memory():
     def __init__(self,N,M,batch_size):
         self.N, self.M, self.batch_size = N, M, batch_size
-        self.reset()
         self.shape = (self.N, self.M)
+        self.reset()
         
     def reset(self):
         # bank of size (batch_size, N, M)
@@ -79,13 +86,17 @@ class Memory():
         
         we = wu*eu
         wa = wu*au
-        self.bank -= we
-        self.bank += wa
+        # avoid in-place modification of self.bank
+        # x += y is in-place plus operation
+        # x = x + y is out-place plus operation
+        self.bank = self.bank - we
+        self.bank = self.bank + wa
     
     def cos(self,k):
         # k is shape of batch * M
         ku = k.unsqueeze(dim=1) # batch * 1 * M
         csim = nn.CosineSimilarity(dim=2)
+        # batch * N
         res = csim(self.bank,ku)
         return res
     
@@ -126,7 +137,8 @@ class Head():
     def reset(self):
         # reset previous weight vector
         N, M = self.mem.shape
-        self.w = torch.ones(self.batch_size,M)/M
+        # w is the shape of batch * N
+        self.w = torch.ones(self.batch_size,N)/N
     
     
     def address(self,param):
@@ -139,7 +151,7 @@ class Head():
         # mem: memory
         # k: batch * M
         # cos: batch * N
-        # beta: batch * 1, 
+        # beta: batch * 1, range (0, inf)
         # g: batch * 1, range (0,1)
         # s: batch * shift_size, range softmax(0,1)
         # gamma: batch * 1, range (1,inf)
@@ -147,10 +159,11 @@ class Head():
         #TODO: where to force range of these values? 
         # before head or after?
         
-        #cos = self.mem.cos(k) # batch * M
-        wc = F.softmax(beta*cos,dim=1)
+        #cos = self.mem.cos(k) # batch * N
+        beta = F.relu(beta) + 1e-8 # beta must be strict positive
+        wc = F.softmax(beta*cos,dim=1) # batch * N
         
-        g = F.sigmoid(g) #force range (0,1)
+        g = torch.sigmoid(g) #force range (0,1)
         wg = g*wc + (1-g)*self.w
         
         s = F.softmax(s,dim=1)
@@ -166,20 +179,22 @@ class Head():
 
         
 class ReadHead(Head):
-    def __init__(self,mem,shift):
-        super(ReadHead,self).__init__(mem,shift)
+    # __init__ is unnecessary as this __init__ function is 
+    # exactly the sae as that of Head
+    # def __init__(self,mem,shift):
+    #     super(ReadHead,self).__init__(mem,shift)
     
     def __call__(self,param):
         w = self.address(param)
         return self.mem.read(w)
 
 class WriteHead(Head):
-    def __init__(self,mem,shift):
-        super(ReadHead,self).__init__(mem,shift)
+    # def __init__(self,mem,shift):
+    #     super(ReadHead,self).__init__(mem,shift)
     
     def __call__(self,param,e,a):
         # e range [0,1]
-        e = F.sigmoid(e)
+        e = torch.sigmoid(e)
         w = self.address_cos(param)
         self.mem.write(w,e,a)
 
@@ -188,24 +203,30 @@ class WriteHead(Head):
 class FFController(nn.Module):
     # feedforward controller
     def __init__(self,batch_size,input_size,hidden_size,n,output_size):
-        # n number of layers
-        super(FFController, self).__init__()
+        # n number of hidden layers
+        # batch_size seems unused
+        
+        # same as super(FFController, self).__init__()
+        super().__init__()
         self.n = n
         self.layers = []
         for i in range(n):
             if i == 0:
                 self.layers[i] = nn.Linear(input_size,hidden_size)
-            elif i == (self.n - 1):
-                self.layers[i] = nn.Linear(hidden_size,output_size)
             else:
                 self.layers[i] = nn.Linear(hidden_size,hidden_size)
+                
+        # this is called the output layer
+        self.layers[i] = nn.Linear(hidden_size,output_size)
         
     def forward(self,x):
         for i, layer in enumerate(self.layers):
-            if i < (self.n - 1):
+            # self.layers has the length of n+1
+            if i < self.n:
                 x = F.leaky_relu(layer(x))
             else:
                 # !!!revist to see if need an activation
+                # no activation for now
                 x = layer(x)
         return x
 
@@ -218,7 +239,7 @@ class AttrDict(dict):
     def __init__(self, *args, **kwargs):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
-
+    # copied from stackflow answer
     @staticmethod
     def from_nested_dict(data):
         """ Construct nested AttrDicts from nested dictionaries. """
@@ -233,9 +254,9 @@ class AttrDict(dict):
 
 class NTM_Head(nn.Module):
     # single-head version
-    def __init__(self,param):
-        super(NTM_Head, self).__init__()
-        p = AttrDict.from_nested_dict(param)
+    def __init__(self,p):
+        # p for model specific parameters
+        super().__init__()
         
         self.p = p
         self.N = p.mem.N
@@ -245,7 +266,8 @@ class NTM_Head(nn.Module):
         # select controller
         Controller = Controllers[p.ctrl.type]
         self.mem = Memory(self.N, self.M, self.batch_size)
-        self.ctrl = Controller(p.batch_size, p.ctrl.input_size,
+        # !!! p.seq_width+1 is a task specific parameter
+        self.ctrl = Controller(p.batch_size, p.seq_width+1,
                 p.ctrl.hidden_size, p.ctrl.n, p.ctrl.output_size)
         
         self.shift = Shift(p.shift_vec)
@@ -267,6 +289,9 @@ class NTM_Head(nn.Module):
         # output: e + a, M + M
         self.ea_layer = nn.Linear(p.N+repr_size,self.M*2)
         #self.a_layer = nn.Linear(p.N+repr_size,M)
+        
+        # !!! task specific layer, remove out of this class in future
+        self.out_layer = nn.Linear(self.M,p.seq_width)
     
     def reset(self):
         # reset for each batch
@@ -277,45 +302,51 @@ class NTM_Head(nn.Module):
     def _split(self,represent):
         rep = represent
         k = rep[:,:self.M]
-        beta = rep[:,self.M]
-        g = rep[:,(self.M+1)]
+        beta = rep[:,[self.M]] # maintain batch * 1 shape
+        g = rep[:,[self.M+1]] # maintian batch * 1 shape
         s = rep[:,(self.M+2):-1]
-        gamma = rep[:,-1]
+        gamma = rep[:,[-1]] # maintian batch * 1 shape
         return [k,beta,g,s,gamma]
         
     
     def forward(self,x):
-        ctrl_out = self.ctrl(x)
+        ctrl_out = F.leaky_relu(self.ctrl(x))
         
-        read_repr = self.read_layer(F.leaky_relu(ctrl_out))
-        read_param = self._split(read_repr)
+        read_vec = self.read_layer(ctrl_out)
+        read_param = self._split(read_vec)
         
-        write_repr = self.write_layer(F.leaky_relu(ctrl_out))
-        w_splits = self._split(write_repr)
+        write_vec = self.write_layer(ctrl_out)
+        w_splits = self._split(write_vec)
         wk = w_splits[0]
         wcos = self.mem.cos(wk)
         write_param = [wcos] + w_splits[1:]
-        write_repr_tanh = F.tanh(write_repr) # match wcos range
-        # wcos: batch*N, write_repr_tanh batch*repr_size
-        ea_input = torch.cat((wcos,write_repr_tanh),dim=1) #TODO
+        
+        write_vec_tanh = torch.tanh(write_vec) # match wcos range
+        # wcos: batch*N, write_vec_tanh batch*repr_size
+        ea_input = torch.cat((wcos,write_vec_tanh),dim=1) #TODO
         ea = self.ea_layer(ea_input)
         e = ea[:,:self.M]
         a = ea[:,self.M:] # add tanh transformation for stored content
                           # as in GRU ?? also add tanh for k??
         self.write(write_param,e,a)
         
-        return self.read(read_param)
+        out = self.read(read_param)
+        
+        # task specific layer
+        # sigmoid output for bit copy task
+        return torch.sigmoid(out)
+        
         
         
 class NTM_Heads(nn.Module):
     # multi-heads version
     def __init__(self,mem,ctrl,rhead_num,whead_num,shift_vec):
-        super(NTM, self).__init__()
+        super().__init__()
         self.mem, self.ctrl = mem, ctrl
         
         self.shift = Shift(shift_vec)
-        self.rheads = [ReadHead(mem,shift) for _ in range(rhead_num)]
-        self.wheads = [WriteHead(mem,shift) for _ in range(whead_num)]
+        self.rheads = [ReadHead(self.mem,self.shift) for _ in range(rhead_num)]
+        self.wheads = [WriteHead(self.mem,self.shift) for _ in range(whead_num)]
         
     def foward(self,x):
         pass

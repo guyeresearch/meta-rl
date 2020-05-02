@@ -1,1 +1,23 @@
-batch_size: 36mem:    N: 20    M: 100shift_vec: [-1,0,1]ctrl:    type: FFController    input_size: 20    hidden_size: 100    output_size: 100    n: 2
+model:
+    mem:
+        N: 20
+        M: 128
+    shift_vec: [-1,0,1]
+    ctrl:
+        type: FFController
+        # input_size: 20
+        hidden_size: 100
+        output_size: 100
+        n: 2
+train:
+    batch_size: 2
+    seq_width: 8
+    seq_min_len: 1
+    seq_max_len: 20
+    num_batches: 50000
+    rmsprop_lr: 1e-4
+    rmsprop_momentum: 0.9
+    rmsprop_alpha: 0.95
+    
+    
+
