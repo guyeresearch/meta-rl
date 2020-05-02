@@ -212,12 +212,12 @@ class FFController(nn.Module):
         self.layers = []
         for i in range(n):
             if i == 0:
-                self.layers[i] = nn.Linear(input_size,hidden_size)
+                self.layers.append(nn.Linear(input_size,hidden_size))
             else:
-                self.layers[i] = nn.Linear(hidden_size,hidden_size)
+                self.layers.append(nn.Linear(hidden_size,hidden_size))
                 
         # this is called the output layer
-        self.layers[i] = nn.Linear(hidden_size,output_size)
+        self.layers.append(nn.Linear(hidden_size,output_size))
         
     def forward(self,x):
         for i, layer in enumerate(self.layers):
@@ -287,7 +287,7 @@ class NTM_Head(nn.Module):
         # !!! repr could be changed to k, revisit, alternative implementation
         # input: cos + repr, N + repr_size, 
         # output: e + a, M + M
-        self.ea_layer = nn.Linear(p.N+repr_size,self.M*2)
+        self.ea_layer = nn.Linear(self.N+repr_size,self.M*2)
         #self.a_layer = nn.Linear(p.N+repr_size,M)
         
         # !!! task specific layer, remove out of this class in future
@@ -331,10 +331,12 @@ class NTM_Head(nn.Module):
         self.write(write_param,e,a)
         
         out = self.read(read_param)
+        # add leaky_relu or not??? revisit
+        seq_out = self.out_layer(F.leaky_relu(out))
         
         # task specific layer
         # sigmoid output for bit copy task
-        return torch.sigmoid(out)
+        return torch.sigmoid(seq_out)
         
         
         

@@ -13,6 +13,7 @@ import numpy as np
 import torch.optim as optim
 import matplotlib.pyplot as plt
 
+from ruamel.yaml import YAML
 import qn
 
 from tasks import *
@@ -22,7 +23,9 @@ from ntm_model import *
 
 
 #%%
-param = qn.load('ntm_param.yml')
+yaml=YAML()
+with open('ntm_param.yml','r') as nf:
+    param = yaml.load(nf)
 p = AttrDict.from_nested_dict(param['train'])
 pm = AttrDict.from_nested_dict(param['model'])
 # copy training parameters required for model building
