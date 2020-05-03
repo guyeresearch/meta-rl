@@ -20,7 +20,7 @@ from tasks import *
 from ntm_model2 import *
 #%%
 
-tag = 'model2'
+tag = 'model2_zero_inp'
 
 yaml=YAML()
 with open('ntm_param.yml','r') as nf:
@@ -59,6 +59,8 @@ for index, inp, target in data:
     loss = 0
     cost = 0
     rec = []
+    # newly added consider removal
+    curr = torch.zeros((p.batch_size,p.seq_width+1))
     for i in range(seq_len):
         # feed delimiter
         # consider change??
@@ -78,7 +80,7 @@ for index, inp, target in data:
     
     if index % 100 == 0 or index == 1:
         cost = torch.mean(cost)/target.shape[0] # error per bit
-        print(index, loss.detach(), cost)
+        print(index, loss.detach(), cost, seq_len)
         costs.append([index, cost])
         lossx.append([index,loss.detach()])
         plt.figure()
