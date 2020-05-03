@@ -15,7 +15,7 @@ train:
     seq_min_len: 1
     seq_max_len: 20
     num_batches: 50000
-    rmsprop_lr: 1e-6
+    rmsprop_lr: 1e-5
     rmsprop_momentum: 0.9
     rmsprop_alpha: 0.95
     
