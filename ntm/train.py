@@ -17,10 +17,10 @@ from ruamel.yaml import YAML
 import qn
 
 from tasks import *
-from ntm_model3 import *
+from ntm_model2 import *
 #%%
 
-tag = 'model3'
+tag = 'model2'
 
 yaml=YAML()
 with open('ntm_param.yml','r') as nf:
