@@ -294,7 +294,7 @@ class NTM_Head(nn.Module):
         # !!! repr could be changed to k, revisit, alternative implementation
         # input: cos + repr, N + repr_size, 
         # output: e + a, M + M
-        self.ea_layer = nn.Linear(self.M+repr_size,self.M*2)
+        self.ea_layer = nn.Linear(self.M+self.M,self.M*2)
         #self.a_layer = nn.Linear(p.N+repr_size,M)
         
         # !!! task specific layer, remove out of this class in future
