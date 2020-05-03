@@ -201,7 +201,7 @@ class WriteHead(Head):
     def __call__(self,param,e,a):
         # e range [0,1]
         e = torch.sigmoid(e)
-        w = self.address_cos(param)
+        w = self.address(param)
         self.mem.write(w,e,a)
 
 #%%
