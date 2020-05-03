@@ -17,7 +17,7 @@ from ruamel.yaml import YAML
 import qn
 
 from tasks import *
-from ntm_model import *
+from ntm_model1 import *
 
 #%%
 
@@ -47,6 +47,7 @@ opm = optim.RMSprop(ntm.parameters(), lr=p.rmsprop_lr, alpha=p.rmsprop_alpha,
 
 #%%
 costs = []
+lossx = []
 for index, inp, target in data:
     
     seq_len = target.shape[0]
@@ -58,13 +59,16 @@ for index, inp, target in data:
     
     loss = 0
     cost = 0
+    rec = []
     for i in range(seq_len):
         # feed delimiter
         # consider change??
         out = ntm(curr) # curr should be delimiter
         curr_tg = target[i,:,:]
+        bce = F.binary_cross_entropy(out,curr_tg)
+        rec.append([out,curr_tg,bce])
         # avoid in-place operation
-        loss = loss + F.binary_cross_entropy(out,curr_tg)
+        loss = loss + bce
         cost += torch.abs(out.detach()-curr_tg.detach())
     
     loss = loss / seq_len # normalize loss for each batch
@@ -75,12 +79,22 @@ for index, inp, target in data:
     
     if index % 100 == 0 or index == 1:
         cost = torch.mean(cost)/target.shape[0] # error per bit
-        print(index, loss.detach()/target.shape[0], cost)
+        print(index, loss.detach(), cost)
         costs.append([index, cost])
+        lossx.append([index,loss.detach()])
         plt.figure()
         plt.plot([x[0] for x in costs],
                  [x[1] for x in costs])
         plt.savefig('figures/cost.png')
         plt.close()
+        
+        plt.figure()
+        plt.plot([x[0] for x in lossx],
+                 [x[1] for x in lossx])
+        plt.savefig('figures/loss.png')
+        plt.close()
+    
+    # if loss < 0.1:
+    #     break
     
 torch.save(ntm.state_dict(),'ntm_ff_copy.pt')

@@ -14,6 +14,10 @@ import numpy as np
 import torch.optim as optim
 
 import qn
+#%%
+# change:
+# 1. remove leaky_relu from out
+# 2. feed memory average rather than cos to get e and a
 
 #%%
 # x = torch.randn(3,2,4)
@@ -76,7 +80,9 @@ class Memory():
         wu = w.unsqueeze(dim=-1) # batch * N * 1
         return (self.bank*wu).sum(dim=1) # batch * M
         
-    
+    def avg(self):
+        return self.bank.mean(dim=1)
+        
     def write(self,w,e,a):
         # w is shape of batch_size * N
         # e,a is shape of batch_size * M
@@ -287,7 +293,7 @@ class NTM_Head(nn.Module):
         # !!! repr could be changed to k, revisit, alternative implementation
         # input: cos + repr, N + repr_size, 
         # output: e + a, M + M
-        self.ea_layer = nn.Linear(self.N+repr_size,self.M*2)
+        self.ea_layer = nn.Linear(self.M+repr_size,self.M*2)
         #self.a_layer = nn.Linear(p.N+repr_size,M)
         
         # !!! task specific layer, remove out of this class in future
@@ -316,14 +322,10 @@ class NTM_Head(nn.Module):
         read_param = self._split(read_vec)
         
         write_vec = self.write_layer(ctrl_out)
-        w_splits = self._split(write_vec)
-        wk = w_splits[0]
-        wcos = self.mem.cos(wk)
-        write_param = [wcos] + w_splits[1:]
+        write_param = self._split(write_vec)
         
-        write_vec_tanh = torch.tanh(write_vec) # match wcos range
-        # wcos: batch*N, write_vec_tanh batch*repr_size
-        ea_input = torch.cat((wcos,write_vec_tanh),dim=1) 
+        mem_avg = self.mem.avg() # batch * M
+        ea_input = torch.cat((mem_avg,write_vec),dim=1)
         ea = self.ea_layer(ea_input)
         e = ea[:,:self.M]
         a = ea[:,self.M:] # add tanh transformation for stored content
@@ -332,7 +334,7 @@ class NTM_Head(nn.Module):
         
         out = self.read(read_param)
         # add leaky_relu or not??? revisit
-        seq_out = self.out_layer(F.leaky_relu(out))
+        seq_out = self.out_layer(out)
         
         # task specific layer
         # sigmoid output for bit copy task
