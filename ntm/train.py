@@ -17,12 +17,11 @@ from ruamel.yaml import YAML
 import qn
 
 from tasks import *
-from ntm_model1 import *
-
+from ntm_model3 import *
 #%%
 
+tag = 'model3'
 
-#%%
 yaml=YAML()
 with open('ntm_param.yml','r') as nf:
     param = yaml.load(nf)
@@ -85,16 +84,16 @@ for index, inp, target in data:
         plt.figure()
         plt.plot([x[0] for x in costs],
                  [x[1] for x in costs])
-        plt.savefig('figures/cost.png')
+        plt.savefig(f'figures/cost_{tag}.png')
         plt.close()
         
         plt.figure()
         plt.plot([x[0] for x in lossx],
                  [x[1] for x in lossx])
-        plt.savefig('figures/loss.png')
+        plt.savefig(f'figures/loss_{tag}.png')
         plt.close()
     
     # if loss < 0.1:
     #     break
     
-torch.save(ntm.state_dict(),'ntm_ff_copy.pt')
+torch.save(ntm.state_dict(),f'ntm_ff_copy_{tag}.pt')
