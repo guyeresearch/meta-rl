@@ -64,12 +64,13 @@ class Memory():
     def __init__(self,N,M,batch_size):
         self.N, self.M, self.batch_size = N, M, batch_size
         self.shape = (self.N, self.M)
+        self.bias = torch.randn(self.batch_size,
+                                self.N, self.M)
         self.reset()
         
     def reset(self):
         # bank of size (batch_size, N, M)
-        self.bank = torch.zeros(self.batch_size,
-                                self.N, self.M)
+        self.bank = torch.tensor(self.bias)
     
     def read(self,w):
         # w is shape of batch_size * N
