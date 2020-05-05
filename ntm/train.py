@@ -17,10 +17,11 @@ from ruamel.yaml import YAML
 import qn
 
 from tasks import *
-from ntm_model2 import *
+from ntm_model2_1 import *
+tag = 'model2_1'
+
 #%%
 
-tag = 'model2_zero_inp'
 
 yaml=YAML()
 with open('ntm_param.yml','r') as nf:
@@ -60,7 +61,7 @@ for index, inp, target in data:
     cost = 0
     rec = []
     # newly added consider removal
-    curr = torch.zeros((p.batch_size,p.seq_width+1))
+    #curr = torch.zeros((p.batch_size,p.seq_width+1))
     for i in range(seq_len):
         # feed delimiter
         # consider change??
