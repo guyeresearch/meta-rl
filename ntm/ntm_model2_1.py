@@ -338,7 +338,7 @@ class NTM_Head(nn.Module):
         out = self.read(read_param)
         # add leaky_relu or not??? revisit
         seq_proc_out = self.seq_proc(out)
-        seq_out = self.out_layer(self.leaky_relu(seq_proc_out))
+        seq_out = self.out_layer(F.leaky_relu(seq_proc_out))
         
         
         # task specific layer
