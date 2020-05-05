@@ -70,7 +70,7 @@ class Memory():
         
     def reset(self):
         # bank of size (batch_size, N, M)
-        self.bank = torch.tensor(self.bias)
+        self.bank = self.clone().detach()
     
     def read(self,w):
         # w is shape of batch_size * N
