@@ -81,7 +81,9 @@ class Memory():
         # w is shape of batch_size * N
         wu = w.unsqueeze(dim=-1) # batch * N * 1
         return (self.bank*wu).sum(dim=1) # batch * M
-        
+    
+    def avg(self):
+        return self.bank.mean(dim=1)
     
     def write(self,w,e,a):
         # w is shape of batch_size * N
