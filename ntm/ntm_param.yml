@@ -14,7 +14,7 @@ train:
     seq_width: 8
     seq_min_len: 1
     seq_max_len: 20
-    num_batches: 50000
+    num_batches: 70000
     rmsprop_lr: 1e-4
     rmsprop_momentum: 0.9
     rmsprop_alpha: 0.95

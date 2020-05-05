@@ -55,7 +55,7 @@ for index, inp, target in data:
     # reset for each sequence
     ntm.reset()    
     for i in range(inp.shape[0]):
-        curr = inp[i,:,:]
+        curr = inp[[i],:,:]
         ntm(curr)
     
     loss = 0
