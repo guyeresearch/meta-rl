@@ -17,9 +17,9 @@ from ruamel.yaml import YAML
 import qn
 
 from tasks import *
-from ntm_model import *
+from ntm_model2 import *
 
-tag = 'model'
+tag = 'model2'
 
 #%%
 
