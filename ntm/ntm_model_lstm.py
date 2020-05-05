@@ -45,7 +45,10 @@ class NTM_Head(nn.Module):
         
         self.p = p
         self.recur = nn.LSTM(p.seq_width+1,p.ctrl.hidden_size,p.ctrl.n)
-        
+        self.h0 = nn.Parameter(torch.randn(self.p.ctrl.n, self.p.batch_size,
+                             self.p.ctrl.hidden_size))
+        self.c0 = nn.Parameter(torch.randn(self.p.ctrl.n, self.p.batch_size,
+                             self.p.ctrl.hidden_size))
      
         #self.a_layer = nn.Linear(p.N+repr_size,M)
         
@@ -55,11 +58,6 @@ class NTM_Head(nn.Module):
     
     def reset(self):
         # reset for each batch
-        self.h0 = nn.Parameter(torch.randn(self.p.ctrl.n, self.p.batch_size,
-                             self.p.ctrl.hidden_size))
-        self.c0 = nn.Parameter(torch.randn(self.p.ctrl.n, self.p.batch_size,
-                             self.p.ctrl.hidden_size))
-        
         self.count = 0
         
     
@@ -77,16 +75,16 @@ class NTM_Head(nn.Module):
         
         
         
-class NTM_Heads(nn.Module):
-    # multi-heads version
-    def __init__(self,mem,ctrl,rhead_num,whead_num,shift_vec):
-        super().__init__()
-        self.mem, self.ctrl = mem, ctrl
+# class NTM_Heads(nn.Module):
+#     # multi-heads version
+#     def __init__(self,mem,ctrl,rhead_num,whead_num,shift_vec):
+#         super().__init__()
+#         self.mem, self.ctrl = mem, ctrl
         
-        self.shift = Shift(shift_vec)
-        self.rheads = [ReadHead(self.mem,self.shift) for _ in range(rhead_num)]
-        self.wheads = [WriteHead(self.mem,self.shift) for _ in range(whead_num)]
+#         self.shift = Shift(shift_vec)
+#         self.rheads = [ReadHead(self.mem,self.shift) for _ in range(rhead_num)]
+#         self.wheads = [WriteHead(self.mem,self.shift) for _ in range(whead_num)]
         
-    def foward(self,x):
-        pass
+#     def foward(self,x):
+#         pass
         
