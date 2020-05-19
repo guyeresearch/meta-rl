@@ -86,13 +86,13 @@ for index, inp, target in data:
         costs.append([index, cost])
         lossx.append([index,loss.detach()])
         plt.figure()
-        plt.plot([x[0] for x in costs],
+        plt.scatter([x[0] for x in costs],
                  [x[1] for x in costs])
         plt.savefig(f'figures/cost_{tag}.png')
         plt.close()
         
         plt.figure()
-        plt.plot([x[0] for x in lossx],
+        plt.scatter([x[0] for x in lossx],
                  [x[1] for x in lossx])
         plt.savefig(f'figures/loss_{tag}.png')
         plt.close()
@@ -100,4 +100,6 @@ for index, inp, target in data:
     # if loss < 0.1:
     #     break
     
-torch.save(ntm.state_dict(),f'ntm_ff_copy_{tag}.pt')
+torch.save(ntm.state_dict(),f'models/ntm_ff_copy_{tag}.pt')
+
+
