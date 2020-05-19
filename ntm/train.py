@@ -87,13 +87,13 @@ for index, inp, target in data:
         lossx.append([index,loss.detach()])
         plt.figure()
         plt.scatter([x[0] for x in costs],
-                 [x[1] for x in costs])
+                 [x[1].numpy() for x in costs])
         plt.savefig(f'figures/cost_{tag}.png')
         plt.close()
         
         plt.figure()
         plt.scatter([x[0] for x in lossx],
-                 [x[1] for x in lossx])
+                 [x[1].numpy() for x in lossx])
         plt.savefig(f'figures/loss_{tag}.png')
         plt.close()
     
